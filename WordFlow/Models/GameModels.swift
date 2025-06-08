@@ -1,0 +1,194 @@
+//
+//  GameModels.swift
+//  WordFlow
+//
+//  Created by Rich Tape on 2025-06-07.
+//
+
+import Foundation
+
+/// Represents a unique position in the game grid using x (column) and y (row) coordinates.
+///
+/// Conforms to `Codable` to allow for saving and loading puzzles from data formats like JSON.
+/// Conforms to `Hashable` to be used efficiently in `Set`s or as `Dictionary` keys, which is crucial for tracking visited squares during word tracing.
+struct GridCoordinate: Codable, Hashable {
+    let x: Int
+    let y: Int
+}
+
+/// Represents the visual and interactive state of a single square in the grid.
+///
+/// This enum is `Codable` so that the entire state of the grid can be saved and loaded.
+enum SquareState: Codable {
+    /// The default state for a letter that has not been interacted with.
+    case normal
+    /// The state when the user's finger is currently on the square during a trace.
+    case selected
+    /// The state for a letter that is part of a successfully found word.
+    case traced
+    /// The state for a letter that is no longer part of any remaining valid words.
+    case faded
+    /// The state for a square that does not contain a letter, used for irregular grid shapes.
+    case blank
+}
+
+/// Represents a single letter square within the game grid.
+/// This model holds the letter itself, its position, and its current state.
+///
+/// Conforms to `Identifiable` to be used directly in SwiftUI `ForEach` loops. Its `coordinate` provides a unique, stable identifier.
+/// Conforms to `Hashable` so that collections of squares can be efficiently stored in `Set`s.
+/// Conforms to `Codable` so that its state can be saved as part of the overall grid data.
+struct LetterSquare: Identifiable, Hashable, Codable {
+    /// A stable, unique identifier for the square, derived from its coordinate.
+    var id: GridCoordinate { coordinate }
+
+    /// The character displayed in this square.
+    let letter: String
+    /// The position of this square in the grid.
+    let coordinate: GridCoordinate
+    /// The current visual and interactive state of the square, defaulting to `normal`.
+    var state: SquareState = .normal
+}
+
+/// Represents a single solution word and its corresponding path within a puzzle's definition.
+///
+/// This model is used to decode the list of all valid words from a puzzle's data file.
+///
+/// Conforms to `Codable` to allow for easy decoding from JSON.
+/// Conforms to `Hashable` so it can be stored in a `Set` for efficient lookups (e.g., checking which words are remaining to be found).
+struct WordPath: Codable, Hashable {
+    /// The solution word.
+    let word: String
+    /// The sequence of grid coordinates that form the `word`.
+    let path: [GridCoordinate]
+}
+
+/// Defines the dimensions of the game grid.
+///
+/// Conforms to `Codable` for puzzle loading and `Equatable` for comparing grid sizes.
+struct GridSize: Codable, Equatable {
+    let width: Int
+    let height: Int
+}
+
+/// Represents the entire game grid, containing all the letter squares.
+///
+/// This struct is the central model for the playable area. It's initialized from a puzzle's raw data
+/// and provides helpful methods for accessing and manipulating the grid squares.
+/// Conforms to `Codable` so the grid's state can be saved as part of the overall `GameState`.
+struct Grid: Codable {
+    /// The dimensions of the grid.
+    let size: GridSize
+    /// A one-dimensional array holding all the `LetterSquare`s that make up the grid.
+    /// The squares are stored in row-major order (i.e., all squares of the first row, then the second, and so on).
+    var squares: [LetterSquare]
+
+    /// Provides convenient access to a `LetterSquare` using its `GridCoordinate`.
+    ///
+    /// - Parameter coordinate: The (x, y) coordinate of the square to access.
+    /// - Returns: The `LetterSquare` at the specified coordinate.
+    subscript(coordinate: GridCoordinate) -> LetterSquare {
+        get {
+            // Formula to convert 2D coordinate to 1D array index.
+            return squares[coordinate.y * size.width + coordinate.x]
+        }
+        set {
+            // Update the square at the given coordinate.
+            squares[coordinate.y * size.width + coordinate.x] = newValue
+        }
+    }
+}
+
+/// Represents a word that the player has successfully found during a game session.
+///
+/// This model stores the word, the path taken, the score awarded, and the timestamp of when it was found.
+///
+/// Conforms to `Identifiable` so it can be used in SwiftUI lists, using the word itself as a unique ID.
+/// Conforms to `Codable` and `Hashable` for saving game state and efficient storage in collections.
+struct FoundWord: Identifiable, Codable, Hashable {
+    /// A unique identifier for the found word, which is the word string itself.
+    var id: String { word }
+
+    /// The word that was found.
+    let word: String
+    /// The path of coordinates the player traced to form the word.
+    let path: [GridCoordinate]
+    /// The score awarded for finding this word.
+    let score: Int
+    /// The date and time when the word was found.
+    let foundAt: Date
+}
+
+/// Represents a complete puzzle, including its definition and all possible solutions.
+///
+/// This model is decoded directly from the puzzle data files (e.g., JSON). It contains all the static
+/// information needed to start a game. Conforms to `Identifiable` to be used in SwiftUI lists.
+struct Puzzle: Codable, Identifiable {
+    /// A unique identifier for the puzzle.
+    let id: String
+    /// The display name of the puzzle.
+    let title: String
+    /// The source grid of letters, represented as a 2D array of optional strings. `nil` represents a blank square.
+    let grid: [[String?]]
+    /// An array of all valid words and their paths for this puzzle.
+    let words: [WordPath]
+    /// The minimum allowed length for a word to be considered valid in this puzzle.
+    let minimumWordLength: Int
+}
+
+/// Represents the dynamic state of a single game session.
+///
+/// This struct holds all the information that changes as a player interacts with a puzzle,
+/// such as which words have been found, the current score, and timing information.
+/// It's designed to be `Codable` so that an entire game session can be easily saved and restored.
+struct GameState: Codable {
+    /// The static puzzle definition for the current game.
+    let puzzle: Puzzle
+
+    /// The playable grid, which tracks the state of each letter square.
+    var grid: Grid
+
+    /// A list of words the player has successfully found.
+    var foundWords: [FoundWord] = []
+
+    /// The player's current total score.
+    var score: Int = 0
+
+    /// The time the game session was started.
+    let startTime: Date
+
+    /// A computed property that determines if the puzzle has been completed.
+    /// The puzzle is complete when the number of found words matches the total number of solution words.
+    var isComplete: Bool {
+        foundWords.count == puzzle.words.count
+    }
+
+    /// Initializes a new game state from a given puzzle.
+    /// This initializer sets up the initial playable grid based on the puzzle's definition.
+    /// - Parameter puzzle: The puzzle to start a game with.
+    init(puzzle: Puzzle) {
+        self.puzzle = puzzle
+        self.startTime = Date()
+
+        // This initialization assumes the puzzle grid data is valid (e.g., non-empty and rectangular).
+        // Puzzle validation will be handled separately by the PuzzleLoader service.
+        let height = puzzle.grid.count
+        let width = puzzle.grid.first?.count ?? 0
+        let size = GridSize(width: width, height: height)
+
+        var squares = [LetterSquare]()
+        squares.reserveCapacity(width * height) // Pre-allocate memory for efficiency
+
+        for (y, row) in puzzle.grid.enumerated() {
+            for (x, letter) in row.enumerated() {
+                let coordinate = GridCoordinate(x: x, y: y)
+                if let letter = letter, !letter.isEmpty {
+                    squares.append(LetterSquare(letter: letter.uppercased(), coordinate: coordinate))
+                } else {
+                    squares.append(LetterSquare(letter: "", coordinate: coordinate, state: .blank))
+                }
+            }
+        }
+        self.grid = Grid(size: size, squares: squares)
+    }
+}
