@@ -94,13 +94,13 @@ WordFlow/
 -   [x] Define `GridCoordinate` struct (x: Int, y: Int)
 -   [x] Define `LetterSquare` struct (letter: String, coordinate: GridCoordinate, state: SquareState)
 -   [x] Define `SquareState` enum (normal, selected, traced, faded, blank)
--   [x] Define `WordPath` struct (coordinates: [GridCoordinate], word: String, isValid: Bool)
--   [x] Define `Grid` struct (letters: [[String?]], size: GridSize, squares: [LetterSquare])
--   [x] Define `GridSize` struct (width: Int, height: Int) with validation (3-6 range)
+-   [x] Define `SolutionWord` struct (word: String, path: [GridCoordinate])
+-   [x] Define `Grid` struct (size: GridSize, squares: [LetterSquare])
+-   [x] Define `GridSize` struct (width: Int, height: Int)
 -   [x] Define `FoundWord` struct (word: String, path: [GridCoordinate], score: Int, foundAt: Date)
--   [x] Define `GameState` class/struct (currentPuzzle, foundWords, score, isComplete, startTime)
--   [x] Add Codable conformance to all models for JSON serialization
--   [x] Create computed properties for common operations (e.g., Grid.isEmpty, GameState.completionPercentage)
+-   [x] Define `GameState` struct (puzzle: Puzzle, grid: Grid, foundWords: [FoundWord], score: Int, isComplete: Bool, startTime: Date)
+-   [x] Add `Codable` conformance to all models for JSON serialization
+-   [x] Create computed properties (e.g., `GameState.isComplete`)
 
 ### **Task 3: Dictionary Service Implementation**
 
@@ -151,15 +151,15 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Create `Resources/Puzzles/puzzle-data.json` file
--   [ ] Design 3x3 grid puzzle with 6-8 words
+-   [x] Create `Resources/Puzzles/puzzle-data.json` file
+-   [x] Design 3x3 grid puzzle with 20 words
 -   [ ] Design 4x4 grid puzzle with 10-12 words
 -   [ ] Design 5x5 grid puzzle with 15-18 words
 -   [ ] Ensure every letter in each grid is used at least once
 -   [ ] Verify all words exist in dictionary
 -   [ ] Test word path connectivity (adjacent letters only)
--   [ ] Add puzzle metadata (title, difficulty, estimated time)
--   [ ] Validate JSON structure matches data models
+-   [x] Add puzzle metadata (title)
+-   [x] Validate JSON structure matches data models
 -   [ ] Create puzzle validation script/test
 
 ### **Task 6: Puzzle Loading Service**
@@ -172,16 +172,16 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Create `Services/PuzzleLoader.swift` file
--   [ ] Create `PuzzleLoader` class with static methods
--   [ ] Implement `loadPuzzleFromJSON(_ filename: String)` method
--   [ ] Add JSON parsing with error handling
--   [ ] Implement puzzle structure validation
+-   [x] Create `Services/PuzzleLoader.swift` file
+-   [x] Create `PuzzleLoader` class with a singleton instance
+-   [x] Implement `loadPuzzles(from: String)` method
+-   [x] Add JSON parsing with error handling
+-   [x] Implement puzzle structure validation via `Codable`
 -   [ ] Verify all words in puzzle are valid (using WordValidator)
 -   [ ] Check letter connectivity requirements
 -   [ ] Add `loadRandomPuzzle()` method
 -   [ ] Add `loadPuzzleByIndex(_ index: Int)` method
--   [ ] Create comprehensive error types for different failure modes
+-   [x] Create comprehensive error types for different failure modes
 
 ### **Task 7: Individual Letter Square Component**
 
