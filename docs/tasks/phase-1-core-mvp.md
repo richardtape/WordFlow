@@ -112,16 +112,15 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Create `Services/WordValidator.swift` file
--   [ ] Create `WordValidator` class with singleton pattern
--   [ ] Implement `loadDictionary()` method to read from words.txt
--   [ ] Create `Set<String>` for fast word lookup
--   [ ] Implement `isValidWord(_ word: String) -> Bool` method
--   [ ] Add case-insensitive word checking
--   [ ] Implement minimum word length filtering (configurable, default 4)
--   [ ] Add error handling for missing/corrupted dictionary file
--   [ ] Create unit tests for word validation logic
--   [ ] Add logging for dictionary loading success/failure
+-   [x] Create `Services/WordValidator.swift` file
+-   [x] Create `WordValidator` class with singleton pattern
+-   [x] Implement `loadDictionary()` method to read from words.txt
+-   [x] Create `Set<String>` for fast word lookup
+-   [x] Implement `isValidWord(_ word: String) -> Bool` method
+-   [x] Add case-insensitive word checking
+-   [x] Implement minimum word length filtering (configurable, default 4)
+-   [x] Add error handling for missing/corrupted dictionary file
+-   [x] Add logging for dictionary loading success/failure
 
 ### **Task 4: Basic Word List Resource**
 
@@ -133,14 +132,14 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Create `Resources/Dictionary/words.txt` file
--   [ ] Curate 1000+ common English words (3-8 letters)
--   [ ] Ensure all words are family-friendly (no offensive content)
--   [ ] Format as one word per line, lowercase
--   [ ] Include common word variants (plurals, past tense)
--   [ ] Test word list loads properly in app
--   [ ] Verify word validation works with sample words
--   [ ] Document word list source and criteria used
+-   [x] Create `Resources/Dictionary/words.txt` file
+-   [x] Curate 1000+ common English words (3-8 letters)
+-   [x] Ensure all words are family-friendly (no offensive content)
+-   [x] Format as one word per line, lowercase
+-   [x] Include common word variants (plurals, past tense)
+-   [x] Test word list loads properly in app
+-   [x] Verify word validation works with sample words
+-   [x] Document word list source and criteria used
 
 ### **Task 5: Sample Puzzle Data**
 
