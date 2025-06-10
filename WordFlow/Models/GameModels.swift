@@ -149,8 +149,9 @@ struct Puzzle: Codable, Identifiable {
         self.title = try container.decode(String.self, forKey: .title)
         self.words = try container.decode([SolutionWord].self, forKey: .words)
 
-        // For the grid, we first decode it as a 2D array of strings from the JSON.
-        let stringGrid = try container.decode([[String]].self, forKey: .grid)
+        // For the grid, we decode it as a 2D array of optional strings from the JSON
+        // to handle blank spaces, which are represented by `null`.
+        let stringGrid = try container.decode([[String?]].self, forKey: .grid)
 
         // Now, we manually construct our `Grid` object from this 2D string array.
         let height = stringGrid.count
@@ -164,7 +165,14 @@ struct Puzzle: Codable, Identifiable {
         for (y, row) in stringGrid.enumerated() {
             for (x, letter) in row.enumerated() {
                 let coordinate = GridCoordinate(x: x, y: y)
-                let letterSquare = LetterSquare(letter: letter, coordinate: coordinate, state: .normal)
+                let letterSquare: LetterSquare
+                // If the letter is non-nil and not empty, create a normal letter square.
+                // Otherwise, it's a blank space in the grid.
+                if let letter = letter, !letter.isEmpty {
+                    letterSquare = LetterSquare(letter: letter.uppercased(), coordinate: coordinate, state: .normal)
+                } else {
+                    letterSquare = LetterSquare(letter: "", coordinate: coordinate, state: .blank)
+                }
                 squares.append(letterSquare)
             }
         }

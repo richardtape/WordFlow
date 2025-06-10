@@ -155,12 +155,12 @@ WordFlow/
 -   [x] Design 3x3 grid puzzle with 20 words
 -   [ ] Design 4x4 grid puzzle with 10-12 words
 -   [ ] Design 5x5 grid puzzle with 15-18 words
--   [ ] Ensure every letter in each grid is used at least once
--   [ ] Verify all words exist in dictionary
--   [ ] Test word path connectivity (adjacent letters only)
+-   [x] Ensure every letter in each grid is used at least once
+-   [x] Verify all words exist in dictionary
+-   [x] Test word path connectivity (adjacent letters only)
 -   [x] Add puzzle metadata (title)
 -   [x] Validate JSON structure matches data models
--   [ ] Create puzzle validation script/test
+-   [x] Create puzzle validation script/test
 
 ### **Task 6: Puzzle Loading Service**
 
@@ -177,8 +177,8 @@ WordFlow/
 -   [x] Implement `loadPuzzles(from: String)` method
 -   [x] Add JSON parsing with error handling
 -   [x] Implement puzzle structure validation via `Codable`
--   [ ] Verify all words in puzzle are valid (using WordValidator)
--   [ ] Check letter connectivity requirements
+-   [x] Verify all words in puzzle are valid (using WordValidator)
+-   [x] Check letter connectivity requirements
 -   [ ] Add `loadRandomPuzzle()` method
 -   [ ] Add `loadPuzzleByIndex(_ index: Int)` method
 -   [x] Create comprehensive error types for different failure modes
@@ -193,16 +193,16 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Create `Views/Game/LetterSquareView.swift` file
--   [ ] Define SwiftUI view struct conforming to View protocol
--   [ ] Add `letter: String` property for display
--   [ ] Add `state: SquareState` property for visual state
--   [ ] Implement base square styling (size, colors, typography)
--   [ ] Add state-specific styling (normal, selected, traced, faded)
--   [ ] Use SF Pro font family as specified in PRD
--   [ ] Make square size configurable via parameter
--   [ ] Add smooth animations for state transitions
--   [ ] Test on different device sizes and orientations
+-   [x] Create `Views/Game/LetterSquareView.swift` file
+-   [x] Define SwiftUI view struct conforming to View protocol
+-   [x] Add `letter: String` property for display
+-   [x] Add `state: SquareState` property for visual state
+-   [x] Implement base square styling (size, colors, typography)
+-   [x] Add state-specific styling (normal, selected, traced, faded)
+-   [x] Use SF Pro font family as specified in PRD
+-   [x] Make square size configurable via parameter
+-   [x] Add smooth animations for state transitions
+-   [x] Test on different device sizes and orientations
 
 ### **Task 8: Grid Layout Component**
 

@@ -56,12 +56,140 @@ class PuzzleLoader {
         // The `decode` method takes the expected `Codable` type (`[Puzzle].self`) and the data.
         do {
             let puzzles = try JSONDecoder().decode([Puzzle].self, from: data)
+            // After decoding, run our comprehensive validation checks.
+            try validate(puzzles: puzzles)
             return puzzles
+        } catch let error as PuzzleLoaderError {
+            // Re-throw validation errors directly to be handled by the caller.
+            throw error
         } catch {
             // If decoding fails, it means the JSON structure doesn't match our `Puzzle` model.
             // We wrap the decoding error to provide more specific feedback.
             throw PuzzleLoaderError.decodingFailed(source: error)
         }
+    }
+
+    // MARK: - Validation Logic
+
+    /// Runs a series of validation checks on the decoded puzzles.
+    ///
+    /// - Parameter puzzles: An array of `Puzzle` objects to validate.
+    /// - Throws: `PuzzleValidationFailed` if any validation check fails for a puzzle.
+    private func validate(puzzles: [Puzzle]) throws {
+        let wordValidator = WordValidator.shared
+        #if DEBUG
+        print("Starting validation for \(puzzles.count) puzzles...")
+        #endif
+
+        for puzzle in puzzles {
+            var validationErrors: [LocalizedError] = []
+            var usedGridCoordinates = Set<GridCoordinate>()
+
+            #if DEBUG
+            print("--> Validating puzzle: '\(puzzle.title)' (ID: \(puzzle.id))")
+            #endif
+
+            for word in puzzle.words {
+                // 1. Verify the word exists in the dictionary.
+                if !wordValidator.isValidWord(word.word, minimumLength: 1) {
+                    validationErrors.append(PuzzleLoaderError.wordNotFoundInDictionary(puzzle: puzzle.title, word: word.word))
+                }
+
+                // 2. & 3. Combine path and spelling validation.
+                do {
+                    try validatePath(for: word, in: puzzle)
+                    try verifyPathSpellsWord(for: word, in: puzzle)
+                } catch {
+                    // All errors thrown by our helpers will conform to LocalizedError.
+                    if let error = error as? LocalizedError {
+                        validationErrors.append(error)
+                    }
+                }
+
+                // Add the coordinates from this word's path to our set of used coordinates.
+                usedGridCoordinates.formUnion(word.path)
+            }
+
+            // 4. Verify all letters in the grid are used.
+            do {
+                try verifyAllGridLettersAreUsed(in: puzzle, usedCoordinates: usedGridCoordinates)
+            } catch {
+                if let error = error as? LocalizedError {
+                    validationErrors.append(error)
+                }
+            }
+
+            // After all checks for this puzzle, if there are errors, throw the composite error.
+            if !validationErrors.isEmpty {
+                throw PuzzleValidationFailed(puzzleTitle: puzzle.title, validationErrors: validationErrors)
+            }
+
+            #if DEBUG
+            print("--> ✅ Validation successful for puzzle: '\(puzzle.title)'")
+            #endif
+        }
+
+        #if DEBUG
+        print("All \(puzzles.count) puzzles passed validation successfully.")
+        #endif
+    }
+
+    /// Validates a word's path for continuity and uniqueness of coordinates.
+    private func validatePath(for solutionWord: SolutionWord, in puzzle: Puzzle) throws {
+        // Check for duplicate coordinates in the path.
+        let uniqueCoordinates = Set(solutionWord.path)
+        if uniqueCoordinates.count != solutionWord.path.count {
+            throw PuzzleLoaderError.invalidPath(puzzle: puzzle.title, word: solutionWord.word, reason: "Path contains duplicate coordinates.")
+        }
+
+        // Check for contiguity (adjacency).
+        for i in 1..<solutionWord.path.count {
+            let prev = solutionWord.path[i-1]
+            let current = solutionWord.path[i]
+            if !areAdjacent(prev, current) {
+                throw PuzzleLoaderError.invalidPath(puzzle: puzzle.title, word: solutionWord.word, reason: "Path is not contiguous. Gap between \(prev) and \(current).")
+            }
+        }
+    }
+
+    /// Verifies that the sequence of letters on the grid at the given path matches the solution word.
+    private func verifyPathSpellsWord(for solutionWord: SolutionWord, in puzzle: Puzzle) throws {
+        let constructedWord = solutionWord.path.map { coordinate in
+            puzzle.grid[coordinate].letter
+        }.joined()
+
+        if constructedWord.lowercased() != solutionWord.word.lowercased() {
+            throw PuzzleLoaderError.pathDoesNotMatchWord(puzzle: puzzle.title, word: solutionWord.word)
+        }
+    }
+
+    /// Verifies that every letter-containing square on the grid is part of at least one solution word.
+    private func verifyAllGridLettersAreUsed(in puzzle: Puzzle, usedCoordinates: Set<GridCoordinate>) throws {
+        for square in puzzle.grid.squares where square.state != .blank {
+            if !usedCoordinates.contains(square.coordinate) {
+                throw PuzzleLoaderError.unusedLetterInGrid(puzzle: puzzle.title, coordinate: square.coordinate)
+            }
+        }
+    }
+
+    /// Checks if two coordinates are adjacent (horizontally, vertically, or diagonally).
+    private func areAdjacent(_ c1: GridCoordinate, _ c2: GridCoordinate) -> Bool {
+        let dx = abs(c1.x - c2.x)
+        let dy = abs(c1.y - c2.y)
+        // Two coordinates are adjacent if they are not the same point and the distance
+        // on both axes is at most 1.
+        return (dx <= 1 && dy <= 1) && (dx != 0 || dy != 0)
+    }
+}
+
+/// A custom error that collects multiple validation failures for a single puzzle.
+struct PuzzleValidationFailed: Error, LocalizedError {
+    let puzzleTitle: String
+    let validationErrors: [LocalizedError]
+
+    var errorDescription: String? {
+        let errorDetails = validationErrors.map { "- \($0.localizedDescription)" }.joined(separator: "\n")
+        return "Validation failed for puzzle '\(puzzleTitle)' with \(validationErrors.count) error(s):\n\(errorDetails)"
     }
 }
 
