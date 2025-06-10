@@ -107,6 +107,10 @@ struct GridView: View {
             .background(Color(.systemGray6))
             // Round the corners of the grid container for a modern UI look.
             .cornerRadius(12)
+            // By enforcing a 1:1 aspect ratio, we ensure the grid is always a perfect square.
+            // The `.fit` content mode tells the view to scale down to fit the available space
+            // without being clipped. This is the key to solving the layout issue.
+            .aspectRatio(1, contentMode: .fit)
         } else {
             // If `viewModel.gameState` is nil, we show a loading indicator.
             // This is a much safer and more user-friendly approach than showing a blank screen.
