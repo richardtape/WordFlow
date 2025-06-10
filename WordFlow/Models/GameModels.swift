@@ -65,7 +65,7 @@ struct SolutionWord: Codable, Hashable {
 /// Defines the dimensions of the game grid.
 ///
 /// Conforms to `Codable` for puzzle loading and `Equatable` for comparing grid sizes.
-struct GridSize: Codable, Equatable {
+struct PuzzleGridSize: Codable, Equatable {
     let width: Int
     let height: Int
 }
@@ -75,9 +75,9 @@ struct GridSize: Codable, Equatable {
 /// This struct is the central model for the playable area. It's initialized from a puzzle's raw data
 /// and provides helpful methods for accessing and manipulating the grid squares.
 /// Conforms to `Codable` so the grid's state can be saved as part of the overall `GameState`.
-struct Grid: Codable {
+struct PuzzleGrid: Codable {
     /// The dimensions of the grid.
-    let size: GridSize
+    let size: PuzzleGridSize
     /// A one-dimensional array holding all the `LetterSquare`s that make up the grid.
     /// The squares are stored in row-major order (i.e., all squares of the first row, then the second, and so on).
     var squares: [LetterSquare]
@@ -127,15 +127,18 @@ struct Puzzle: Codable, Identifiable {
     let id: String
     /// The display title of the puzzle.
     let title: String
-    /// The 2D grid of letters for the puzzle.
-    let grid: Grid
+    /// The grid definition for the puzzle, containing all letters and their arrangement.
+    let grid: PuzzleGrid
     /// An array of the solution words that can be found within the puzzle.
     let words: [SolutionWord]
+    /// The minimum number of letters a word must have to be considered valid for this puzzle.
+    /// This value is loaded from the puzzle data, with a default fallback.
+    let minimumWordLength: Int
 
     // We define custom coding keys to match the keys in our `puzzle-data.json` file.
     // This is a good practice for making Codable conformance robust.
     enum CodingKeys: String, CodingKey {
-        case id, title, grid, words
+        case id, title, grid, words, minimumWordLength
     }
 
     // We need a custom initializer to handle the decoding of the `grid` property.
@@ -148,6 +151,10 @@ struct Puzzle: Codable, Identifiable {
         self.id = try container.decode(String.self, forKey: .id)
         self.title = try container.decode(String.self, forKey: .title)
         self.words = try container.decode([SolutionWord].self, forKey: .words)
+        // We use `decodeIfPresent` because the key might not exist in all puzzle files.
+        // If it's missing, we provide a sensible default value of 4.
+        self.minimumWordLength =
+            try container.decodeIfPresent(Int.self, forKey: .minimumWordLength) ?? 4
 
         // For the grid, we decode it as a 2D array of optional strings from the JSON
         // to handle blank spaces, which are represented by `null`.
@@ -156,7 +163,7 @@ struct Puzzle: Codable, Identifiable {
         // Now, we manually construct our `Grid` object from this 2D string array.
         let height = stringGrid.count
         let width = stringGrid.first?.count ?? 0
-        let size = GridSize(width: width, height: height)
+        let size = PuzzleGridSize(width: width, height: height)
 
         var squares = [LetterSquare]()
         squares.reserveCapacity(width * height)
@@ -169,7 +176,8 @@ struct Puzzle: Codable, Identifiable {
                 // If the letter is non-nil and not empty, create a normal letter square.
                 // Otherwise, it's a blank space in the grid.
                 if let letter = letter, !letter.isEmpty {
-                    letterSquare = LetterSquare(letter: letter.uppercased(), coordinate: coordinate, state: .normal)
+                    letterSquare = LetterSquare(
+                        letter: letter.uppercased(), coordinate: coordinate, state: .normal)
                 } else {
                     letterSquare = LetterSquare(letter: "", coordinate: coordinate, state: .blank)
                 }
@@ -178,16 +186,18 @@ struct Puzzle: Codable, Identifiable {
         }
 
         // Finally, create the Grid object and assign it.
-        self.grid = Grid(size: size, squares: squares)
+        self.grid = PuzzleGrid(size: size, squares: squares)
     }
 
     // We also need a memberwise initializer for creating `Puzzle` instances manually,
     // as the compiler no longer provides one after we defined a custom decoder initializer.
-    init(id: String, title: String, grid: Grid, words: [SolutionWord]) {
+    init(id: String, title: String, grid: PuzzleGrid, words: [SolutionWord], minimumWordLength: Int)
+    {
         self.id = id
         self.title = title
         self.grid = grid
         self.words = words
+        self.minimumWordLength = minimumWordLength
     }
 }
 
@@ -201,7 +211,7 @@ struct GameState: Codable {
     let puzzle: Puzzle
 
     /// The playable grid, which tracks the state of each letter square.
-    var grid: Grid
+    var grid: PuzzleGrid
 
     /// A list of words the player has successfully found.
     var foundWords: [FoundWord] = []

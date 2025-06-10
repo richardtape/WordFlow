@@ -257,14 +257,14 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Create path validation logic in GameViewModel
--   [ ] Implement adjacency verification for coordinate pairs
--   [ ] Add duplicate square detection within single path
+-   [x] Create path validation logic in GameViewModel
+-   [x] Implement adjacency verification for coordinate pairs
+-   [x] Add duplicate square detection within single path
 -   [ ] Integrate with WordValidator for dictionary checking
--   [ ] Create minimum word length checking (configurable, default 4)
--   [ ] Add path-to-string conversion logic
--   [ ] Implement invalid word feedback system
--   [ ] Add word already found detection
+-   [x] Create minimum word length checking (configurable, default 4)
+-   [x] Add path-to-string conversion logic
+-   [x] Implement invalid word feedback system
+-   [x] Add word already found detection
 -   [ ] Create comprehensive validation error types
 -   [ ] Test edge cases (single letter, maximum length words)
 
@@ -278,14 +278,14 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Update LetterSquareView to show selected state
--   [ ] Implement highlighting for currently traced letters (system blue background)
+-   [x] Update LetterSquareView to show selected state
+-   [x] Implement highlighting for currently traced letters (system blue background)
 -   [ ] Add connecting line/path between selected letters
 -   [ ] Use smooth curved paths with 3pt stroke width
--   [ ] Implement real-time visual updates during tracing
--   [ ] Add animation for letter selection/deselection
+-   [x] Implement real-time visual updates during tracing
+-   [x] Add animation for letter selection/deselection
 -   [ ] Show traced path with 50% opacity
--   [ ] Clear visual state when word is completed or cancelled
+-   [x] Clear visual state when word is completed or cancelled
 -   [ ] Test visual feedback on different background colors
 -   [ ] Ensure accessibility with high contrast mode
 
