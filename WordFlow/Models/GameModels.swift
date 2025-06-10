@@ -50,6 +50,14 @@ struct LetterSquare: Identifiable, Hashable, Codable {
     var state: SquareState = .normal
 }
 
+/// Defines the difficulty of a word, which can influence scoring or puzzle requirements.
+/// The `String` raw value allows it to be easily encoded to and from JSON.
+enum WordDifficulty: String, Codable {
+    case common
+    case uncommon
+    case rare
+}
+
 /// Represents a single solution word and its corresponding path within a puzzle's definition.
 /// This model is used to decode the list of all valid words from a puzzle's data file.
 ///
@@ -60,6 +68,33 @@ struct SolutionWord: Codable, Hashable {
     let word: String
     /// The sequence of grid coordinates that form the `word`.
     let path: [GridCoordinate]
+    /// Determines if the word is required for puzzle completion or is an optional bonus word.
+    let required: Bool
+    /// The classification of the word, which can affect scoring. Defaults to `common` if not provided.
+    let difficulty: WordDifficulty
+
+    // We need a custom decoder to handle the case where `required` and `difficulty`
+    // might be missing from older puzzle data files, ensuring backward compatibility.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        word = try container.decode(String.self, forKey: .word)
+        path = try container.decode([GridCoordinate].self, forKey: .path)
+        // If `required` is missing, we default to `true`.
+        required = try container.decodeIfPresent(Bool.self, forKey: .required) ?? true
+        // If `difficulty` is missing, we default to `.common`.
+        difficulty =
+            try container.decodeIfPresent(WordDifficulty.self, forKey: .difficulty) ?? .common
+    }
+
+    // Since we provided a custom `init(from:)`, Swift no longer provides the automatic
+    // memberwise initializer. We must define it ourselves so we can create instances
+    // of this struct in our code (like in the preview mock data).
+    init(word: String, path: [GridCoordinate], required: Bool, difficulty: WordDifficulty) {
+        self.word = word
+        self.path = path
+        self.required = required
+        self.difficulty = difficulty
+    }
 }
 
 /// Defines the dimensions of the game grid.

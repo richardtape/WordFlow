@@ -299,16 +299,16 @@ WordFlow/
 
 **Sub-tasks:**
 
--   [ ] Create `Views/Game/WordListView.swift` file
--   [ ] Design scrollable list for found words
--   [ ] Display word with length in parentheses
+-   [x] Create `Views/Game/WordListView.swift` file
+-   [x] Design scrollable list for found words (refactored to use collapsible DisclosureGroups)
+-   [x] Display word with length in parentheses (refactored to show category with found/total count)
 -   [ ] Show individual word scores
 -   [ ] Use chronological ordering (newest first or last)
--   [ ] Add visual styling matching iOS design system
--   [ ] Implement smooth list animations for new words
--   [ ] Handle empty state (no words found yet)
--   [ ] Test scrolling behavior with many words
--   [ ] Add accessibility support for word list
+-   [x] Add visual styling matching iOS design system
+-   [x] Implement smooth list animations for new words (via DisclosureGroup)
+-   [x] Handle empty state (no words found yet)
+-   [x] Test scrolling behavior with many words
+-   [x] Add accessibility support for word list
 
 ### **Task 13: Basic Scoring System**
 
