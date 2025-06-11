@@ -34,10 +34,24 @@ struct Shake: GeometryEffect {
 /// and dynamically calculates the size of each square to ensure the entire puzzle fits
 /// perfectly on any device screen, from a small iPhone to a large iPad.
 struct GridView: View {
-    /// A reference to the view model that manages the game's state and logic.
-    /// The `@ObservedObject` property wrapper tells SwiftUI that this view should
-    /// re-render whenever the `viewModel`'s `@Published` properties change.
-    @ObservedObject var viewModel: GameViewModel
+    /// The static grid data to be displayed. By passing in just the `PuzzleGrid` model,
+    /// this view becomes more reusable and decoupled from the main `GameViewModel`.
+    /// It no longer needs to know about the entire game state.
+    let grid: PuzzleGrid
+
+    /// A callback function that the `GridView` will execute when the user completes a gesture.
+    /// It passes the traced path (an array of coordinates) back to the parent view (`GameView`),
+    /// which is responsible for handling the validation logic. This is a form of delegation.
+    let onPathValidated: ([GridCoordinate]) -> Void
+
+    // MARK: - State for UI Feedback (passed from parent)
+
+    /// The path of a successfully found word, used to create a temporary "flash" effect.
+    /// This is a `Binding` because the parent view (`GameView`) owns and modifies this state.
+    @Binding var highlightedPath: [GridCoordinate]
+
+    /// A counter that, when changed by the parent view, triggers the shake animation.
+    @Binding var invalidShake: Int
 
     // MARK: - Gesture State Properties
     /// The path of coordinates the user is currently tracing with their finger.
@@ -52,12 +66,6 @@ struct GridView: View {
     /// The timer responsible for confirming the selection of a `candidateCoord`.
     @State private var selectionTimer: Timer? = nil
 
-    /// Stores the path of a successfully found word temporarily to create a "flash" effect.
-    @State private var highlightedPath: [GridCoordinate] = []
-
-    /// A counter that, when changed, triggers the shake animation for an invalid word attempt.
-    @State private var invalidShake = 0
-
     // MARK: - Tunable Constants
     /// The short delay before a hovered square is officially selected. This makes the gesture more forgiving.
     /// This value can be tweaked to get the "feel" of the game just right.
@@ -66,61 +74,52 @@ struct GridView: View {
     private let spacing: CGFloat = 8
 
     var body: some View {
-        // We use an `if let` to safely unwrap the grid data from the view model's state.
-        // This ensures that our view only tries to render the grid when a game is actually in progress.
-        if let grid = viewModel.gameState?.grid {
-            // GeometryReader is a container view that provides the size of the parent view.
-            // It's the key to making our grid responsive. We use its size to calculate the
-            // dimensions of our letter squares.
-            GeometryReader { geometry in
-                // Calculate the size for each square based on the available width from the GeometryReader.
-                let squareSize = calculateSquareSize(for: geometry.size, grid: grid)
+        // We now directly use the `grid` property that is passed into this view.
+        // This removes the dependency on the `GameViewModel` inside this component.
+        GeometryReader { geometry in
+            // Calculate the size for each square based on the available width from the GeometryReader.
+            let squareSize = calculateSquareSize(for: geometry.size)
 
-                // LazyVGrid is a view that arranges its children in a grid that grows vertically.
-                // It's "lazy" because it only creates the child views (our LetterSquareViews)
-                // when they are needed to be displayed, which is very efficient.
-                LazyVGrid(columns: columns(for: grid), spacing: spacing) {
-                    // We loop through each `LetterSquare` in our data model.
-                    // Because `LetterSquare` is `Identifiable`, SwiftUI can track each square
-                    // efficiently.
-                    ForEach(grid.squares) { square in
-                        LetterSquareView(
-                            letter: square.letter,
-                            // The state is now determined by multiple factors for rich feedback:
-                            // 1. Is it part of the temporary green highlight path? -> .traced
-                            // 2. Is the user currently selecting it? -> .selected
-                            // 3. Otherwise, use its base state from the model.
-                            state: state(for: square, grid: grid),
-                            // We pass the dynamically calculated size to each square.
-                            size: squareSize
-                        )
-                    }
+            // LazyVGrid is a view that arranges its children in a grid that grows vertically.
+            // It's "lazy" because it only creates the child views (our LetterSquareViews)
+            // when they are needed to be displayed, which is very efficient.
+            LazyVGrid(columns: columns, spacing: spacing) {
+                // We loop through each `LetterSquare` in our data model.
+                // Because `LetterSquare` is `Identifiable`, SwiftUI can track each square
+                // efficiently.
+                ForEach(grid.squares) { square in
+                    LetterSquareView(
+                        letter: square.letter,
+                        // The state is now determined by multiple factors for rich feedback:
+                        // 1. Is it part of the temporary green highlight path? -> .traced
+                        // 2. Is the user currently selecting it? -> .selected
+                        // 3. Otherwise, use its base state from the model.
+                        state: state(for: square),
+                        // We pass the dynamically calculated size to each square.
+                        size: squareSize
+                    )
                 }
-                // We attach the drag gesture to the grid container.
-                .gesture(dragGesture(squareSize: squareSize, grid: grid))
-                // Apply the shake effect. The `modifier` is triggered whenever `invalidShake` changes.
-                .modifier(Shake(animatableData: CGFloat(invalidShake)))
             }
-            // Add some padding around the entire grid.
-            .padding(spacing)
-            // Set a background color for the grid container to visually separate it from the screen background.
-            .background(Color(.systemGray6))
-            // Round the corners of the grid container for a modern UI look.
-            .cornerRadius(12)
-            // By enforcing a 1:1 aspect ratio, we ensure the grid is always a perfect square.
-            // The `.fit` content mode tells the view to scale down to fit the available space
-            // without being clipped. This is the key to solving the layout issue.
-            .aspectRatio(1, contentMode: .fit)
-        } else {
-            // If `viewModel.gameState` is nil, we show a loading indicator.
-            // This is a much safer and more user-friendly approach than showing a blank screen.
-            ProgressView("Loading Puzzle...")
+            // We attach the drag gesture to the grid container.
+            .gesture(dragGesture(squareSize: squareSize))
+            // Apply the shake effect. The `modifier` is triggered whenever `invalidShake` changes.
+            .modifier(Shake(animatableData: CGFloat(invalidShake)))
         }
+        // Add some padding around the entire grid.
+        .padding(spacing)
+        // Set a background color for the grid container to visually separate it from the screen background.
+        .background(Color(.systemGray6))
+        // Round the corners of the grid container for a modern UI look.
+        .cornerRadius(12)
+        // By enforcing a 1:1 aspect ratio, we ensure the grid is always a perfect square.
+        // The `.fit` content mode tells the view to scale down to fit the available space
+        // without being clipped. This is the key to solving the layout issue.
+        .aspectRatio(1, contentMode: .fit)
     }
 
     /// A computed property that defines the column layout for the `LazyVGrid`.
     /// The number of columns is determined by the width of the grid data.
-    private func columns(for grid: PuzzleGrid) -> [GridItem] {
+    private var columns: [GridItem] {
         // `GridItem(.flexible())` creates a column that takes up an equal share of the available space.
         // By creating an array of these, we define the grid's structure.
         Array(repeating: GridItem(.flexible(), spacing: spacing), count: grid.size.width)
@@ -130,7 +129,7 @@ struct GridView: View {
     /// This is the core of the responsive layout logic.
     /// - Parameter size: The size of the container view, provided by `GeometryReader`.
     /// - Returns: The calculated width and height for a single square.
-    private func calculateSquareSize(for size: CGSize, grid: PuzzleGrid) -> CGFloat {
+    private func calculateSquareSize(for size: CGSize) -> CGFloat {
         // To calculate the size, we first determine the total amount of space taken up by spacing.
         let totalSpacing = spacing * CGFloat(grid.size.width - 1)
         // Then, we subtract that from the total available width.
@@ -142,11 +141,11 @@ struct GridView: View {
     /// Creates and configures the `DragGesture` for the grid.
     /// - Parameter squareSize: The size of each square, needed for coordinate calculation.
     /// - Returns: A configured `DragGesture`.
-    private func dragGesture(squareSize: CGFloat, grid: PuzzleGrid) -> some Gesture {
+    private func dragGesture(squareSize: CGFloat) -> some Gesture {
         DragGesture(minimumDistance: 0)
             .onChanged { value in
                 // Determine which square the user's finger is currently over.
-                guard let hoveredCoord = coordinate(for: value.location, in: squareSize, grid: grid)
+                guard let hoveredCoord = coordinate(for: value.location, in: squareSize)
                 else {
                     // If the finger moves outside the grid, cancel any pending selection.
                     selectionTimer?.invalidate()
@@ -207,17 +206,9 @@ struct GridView: View {
 
                 // If the path is not empty, we can pass it to the view model for validation.
                 if !currentPath.isEmpty {
-                    // Call the validation method on the view model.
-                    // It now returns the successful path, or nil.
-                    if let successPath = viewModel.validatePath(currentPath) {
-                        // --- Success Case ---
-                        // Trigger the green flash effect.
-                        flash(path: successPath)
-                    } else {
-                        // --- Failure Case ---
-                        // Trigger the shake animation.
-                        shake()
-                    }
+                    // Instead of calling the viewModel directly, we use our callback.
+                    // The parent view (`GameView`) is now responsible for handling the result.
+                    onPathValidated(currentPath)
                 }
 
                 // Reset for the next gesture.
@@ -258,7 +249,7 @@ struct GridView: View {
     ///   - location: The `CGPoint` of the touch from the `DragGesture`.
     ///   - squareSize: The size of each square in the grid.
     /// - Returns: A `GridCoordinate` if the location is within the bounds of the grid, otherwise `nil`.
-    private func coordinate(for location: CGPoint, in squareSize: CGFloat, grid: PuzzleGrid)
+    private func coordinate(for location: CGPoint, in squareSize: CGFloat)
         -> GridCoordinate?
     {
         let col = Int(location.x / (squareSize + spacing))
@@ -286,7 +277,7 @@ struct GridView: View {
     }
 
     /// Determines the correct `SquareState` for a given square, layering temporary UI states over the base model state.
-    private func state(for square: LetterSquare, grid: PuzzleGrid) -> SquareState {
+    private func state(for square: LetterSquare) -> SquareState {
         let coord = square.coordinate
 
         if highlightedPath.contains(coord) {
@@ -299,7 +290,7 @@ struct GridView: View {
         }
         // Otherwise, we fall back to the authoritative state from the GameState model.
         // We look up the square's state from the viewModel to ensure we have the most recent data.
-        return viewModel.gameState?.grid[coord].state ?? .normal
+        return grid[coord].state
     }
 
     // MARK: - Animation Triggers
@@ -325,20 +316,53 @@ struct GridView: View {
 }
 
 // MARK: - Preview
+
 #if DEBUG
+    /// A private wrapper view used to host and set up the `GridView` for previewing.
+    ///
+    /// This is the standard best-practice pattern for creating complex SwiftUI previews that
+    /// require their own state management or setup logic.
+    private struct GridView_Preview_Wrapper: View {
+        // MARK: State
+        // The wrapper view now correctly owns all the state needed for the preview.
+        @StateObject private var viewModel = GameViewModel()
+        @State private var highlightedPath: [GridCoordinate] = []
+        @State private var invalidShake = 0
+
+        var body: some View {
+            // We use a Group to allow for conditional logic inside.
+            Group {
+                // We only attempt to show the GridView if the grid data is available.
+                if let grid = viewModel.gameState?.grid {
+                    GridView(
+                        grid: grid,
+                        onPathValidated: { path in
+                            // For the preview, we can just print the result.
+                            print("Path validated in preview: \(path)")
+                            // We could even simulate the full validation for a more interactive preview.
+                            // let _ = viewModel.validatePath(path)
+                        },
+                        highlightedPath: $highlightedPath,
+                        invalidShake: $invalidShake
+                    )
+                    .frame(width: 350, height: 350)
+                    .padding()
+                } else {
+                    Text("Loading Preview...")
+                }
+            }
+            // .onAppear is the correct place to put setup logic that doesn't return a View.
+            // It runs once when the view is first drawn.
+            .onAppear {
+                viewModel.startNewGame(puzzleIndex: 0)
+            }
+        }
+    }
+
     struct GridView_Previews: PreviewProvider {
         static var previews: some View {
-            // 1. Create an instance of our GameViewModel.
-            let viewModel = GameViewModel()
-
-            // 2. Start a game so the preview has data to show.
-            //    This makes the preview render the grid immediately.
-            viewModel.startNewGame(puzzleIndex: 0)
-
-            // 3. Return the GridView, passing in the configured viewModel.
-            return GridView(viewModel: viewModel)
-                .frame(width: 350, height: 350)  // A realistic size for a device screen.
-                .padding()
+            // The preview provider is now incredibly simple: it just returns our wrapper.
+            GridView_Preview_Wrapper()
         }
     }
 #endif

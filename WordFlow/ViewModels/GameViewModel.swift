@@ -10,6 +10,23 @@
 import Foundation
 import SwiftUI
 
+/// An enum to represent the specific outcome of a word path validation attempt.
+///
+/// This provides a much richer and more descriptive result than a simple optional or boolean.
+/// The view can use this information to display precise feedback to the user, such as
+/// why a word was rejected or the score for a successful word.
+enum PathValidationResult {
+    /// The traced path formed a valid, newly discovered word.
+    /// The associated values contain the word, the score awarded, and the path taken.
+    case success(word: String, score: Int, path: [GridCoordinate])
+    /// The traced word was valid, but has already been found in this session.
+    case alreadyFound(word: String)
+    /// The traced word is not in the puzzle's solution list.
+    case invalidWord
+    /// The traced word is shorter than the puzzle's minimum required length.
+    case tooShort
+}
+
 /// The `GameViewModel` is the central nervous system for the game screen.
 ///
 /// As a key part of the MVVM (Model-View-ViewModel) architecture, this class is responsible for
@@ -86,17 +103,24 @@ class GameViewModel: ObservableObject {
         self.gameState = GameState(puzzle: puzzle)
     }
 
+    /// This is a convenience method to start a new game with a random puzzle.
+    /// It's useful for a "Play Again" feature.
+    func startRandomNewGame() {
+        let randomIndex = Int.random(in: 0..<allPuzzles.count)
+        startNewGame(puzzleIndex: randomIndex)
+    }
+
     /// Validates a path of coordinates traced by the user to see if it forms a valid, undiscovered word.
     ///
     /// This method has been updated to be more flexible. It now checks if the traced word exists in the
     /// solution list, regardless of the specific path taken. This allows for multiple valid ways to form the same word.
     ///
-    /// If the word is valid, it updates the `GameState` and returns the successful path,
-    /// allowing the View to provide temporary visual feedback (like a flash).
+    /// If the word is valid, it updates the `GameState` and returns a `.success` result.
+    /// Otherwise, it returns a result indicating the specific reason for failure.
     ///
     /// - Parameter path: An array of `GridCoordinate`s representing the user's trace.
-    /// - Returns: An optional `[GridCoordinate]`. It returns the path if the word is valid and newly found, otherwise `nil`.
-    func validatePath(_ path: [GridCoordinate]) -> [GridCoordinate]? {
+    /// - Returns: A `PathValidationResult` describing the outcome.
+    func validatePath(_ path: [GridCoordinate]) -> PathValidationResult? {
         // First, ensure a game is actually in progress. We use `guard let` to safely
         // unwrap the optional `gameState`. The `var` is important because we intend to modify it.
         guard var currentState = self.gameState else {
@@ -115,7 +139,7 @@ class GameViewModel: ObservableObject {
                     "Validation failed: '\(tracedWord)' is too short (minimum is \(currentState.puzzle.minimumWordLength))."
                 )
             #endif
-            return nil
+            return .tooShort
         }
 
         // Check if this word has already been found. We don't want to give credit twice.
@@ -125,7 +149,7 @@ class GameViewModel: ObservableObject {
             #if DEBUG
                 print("Validation failed: '\(tracedWord)' has already been found.")
             #endif
-            return nil
+            return .alreadyFound(word: tracedWord)
         }
 
         // The NEW flexible validation: Does a solution exist in the puzzle's word list that matches
@@ -140,14 +164,14 @@ class GameViewModel: ObservableObject {
                     "Validation failed: '\(tracedWord)' is not a valid solution word for this puzzle."
                 )
             #endif
-            return nil
+            return .invalidWord
         }
 
         // --- Success! The word is valid and new. ---
 
-        // TODO: Integrate with ScoringService (Task 13) to calculate the score.
-        // For now, we'll use a placeholder value.
-        let score = 100  // Placeholder score
+        // We now use our dedicated ScoringService to calculate the score for the found word.
+        // This call replaces the previous placeholder value.
+        let score = ScoringService.calculateScore(for: solution.word)
 
         // Create a `FoundWord` model to record the discovery.
         // Note: We use the traced path, not the original solution path, to record how the user found it.
@@ -160,6 +184,9 @@ class GameViewModel: ObservableObject {
 
         // Add the newly found word to our state.
         currentState.foundWords.append(newFoundWord)
+
+        // We also add the score of the new word to the player's total score for the puzzle.
+        currentState.score += score
 
         // The view will now be responsible for temporary visual feedback.
         // We no longer change the grid state to `.traced` here.
@@ -174,6 +201,6 @@ class GameViewModel: ObservableObject {
         #endif
 
         // Return the successful path so the view can create a flash effect.
-        return path
+        return .success(word: solution.word, score: score, path: path)
     }
 }
